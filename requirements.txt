@@ -1,8 +1,9 @@
-Django>=5.2,<7
+Django>=5.2,<6.2
 channels>=4.2,<5
 channels-redis>=4.2,<5
 daphne>=4.1,<5
 Pillow>=11
 django-environ>=0.12
-# For PostgreSQL (DATABASE_URL=postgres://...), also install:
-# psycopg[binary]>=3.2
+whitenoise>=6.8,<7
+cloudinary>=1.41,<2
+psycopg[binary]>=3.2,<4

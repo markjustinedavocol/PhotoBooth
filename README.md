@@ -68,6 +68,51 @@ CSRF_TRUSTED_ORIGINS=https://abc123.ngrok-free.app
 
 The live video uses Google's public STUN servers. That covers most home networks. Some strict mobile or corporate networks need a TURN server, which you add to `RTC_CONFIG` in `static/js/booth.js`. Even when live video can't connect, the synced countdown and the strip still work, because they go through the Django server.
 
+## Deploying to Render with Cloudinary
+
+The repo is ready for Render. `render.yaml` sets up a web service and a PostgreSQL database, and `build.sh` installs dependencies, collects static files, migrates the database and creates the admin account. Photos are stored in Cloudinary.
+
+### 1. Get your Cloudinary URL
+
+Sign up at https://cloudinary.com (the free plan is enough). On the dashboard, open **API Keys** and copy the **API environment variable**. It looks like this:
+
+```
+CLOUDINARY_URL=cloudinary://123456789012345:AbCdEfGhIjKlMnOpQrStUvWxYz@your-cloud-name
+```
+
+You only need the part after `CLOUDINARY_URL=`.
+
+Photos are uploaded as **authenticated** files in a `miles-apart/` folder, so they have no public link. Cloudinary's Media Library lists them under **Raw** files.
+
+### 2. Push the code to GitHub
+
+Commit and push as usual. `render.yaml` and `build.sh` need to be in the repo.
+
+### 3. Create the Blueprint on Render
+
+1. In the Render dashboard, go to **New → Blueprint** and connect your GitHub repo.
+2. Render reads `render.yaml` and asks for these values:
+   | Variable | What to enter |
+   | --- | --- |
+   | `CLOUDINARY_URL` | the `cloudinary://…` value from step 1 |
+   | `DJANGO_SUPERUSER_USERNAME` | your admin username, e.g. `admin` |
+   | `DJANGO_SUPERUSER_PASSWORD` | a strong password |
+   | `DJANGO_SUPERUSER_EMAIL` | your email |
+3. Click **Apply**. The first build takes a few minutes. Your site is then at `https://miles-apart.onrender.com`, or whatever name Render gives it.
+
+You don't need to set `SECRET_KEY`, `DATABASE_URL` or `ALLOWED_HOSTS`. Render generates or fills them in.
+
+### Optional settings
+
+- **Real password-reset emails.** Add `EMAIL_URL`, e.g. `smtp+tls://you@gmail.com:APP-PASSWORD@smtp.gmail.com:587` with a Gmail app password. Without it, reset emails only appear in Render's logs.
+- **Custom domain.** Add it in Render, then set `ALLOWED_HOSTS` and `CSRF_TRUSTED_ORIGINS=https://yourdomain.com`.
+
+### Free-plan limits
+
+- **The site sleeps after about 15 minutes of no visits.** The next visit takes 30–60 seconds to wake it up. Open the site a minute before a booth date.
+- **Render's free PostgreSQL expires after 30 days.** Upgrade the database, or point `DATABASE_URL` at another Postgres host such as Neon or Supabase, before then. Photos stay safe in Cloudinary either way, but the accounts and strip records live in the database.
+- **Everything runs as one process.** The booth's real-time messages use an in-memory channel layer, which is fine for a single instance. Before scaling to more instances, add a Render **Key Value** (Redis) instance and set `REDIS_URL` to its internal URL.
+
 ## Redis and production
 
 In development the channel layer is in-memory, which only works with a single server process. For production:

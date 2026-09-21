@@ -1,0 +1,37 @@
+# Render Blueprint: New > Blueprint in the Render dashboard, pick this repo.
+# You'll be asked for the values marked `sync: false`.
+databases:
+  - name: photobooth-db
+    plan: free
+    databaseName: photobooth
+    user: photobooth
+
+services:
+  - type: web
+    name: miles-apart
+    runtime: python
+    plan: free
+    buildCommand: bash build.sh
+    # Daphne serves both HTTP and the booth's WebSockets. One process keeps the
+    # in-memory channel layer valid; set REDIS_URL before scaling to more instances.
+    startCommand: daphne --bind 0.0.0.0 --port $PORT --proxy-headers photobooth.asgi:application
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.5
+      - key: DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: photobooth-db
+          property: connectionString
+      - key: CLOUDINARY_URL
+        sync: false
+      - key: DJANGO_SUPERUSER_USERNAME
+        sync: false
+      - key: DJANGO_SUPERUSER_PASSWORD
+        sync: false
+      - key: DJANGO_SUPERUSER_EMAIL
+        sync: false

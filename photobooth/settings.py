@@ -13,6 +13,15 @@ DEBUG = env.bool("DEBUG", default=False)
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
 CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
 
+# Render sets this automatically (e.g. miles-apart.onrender.com).
+RENDER_EXTERNAL_HOSTNAME = env("RENDER_EXTERNAL_HOSTNAME", default="")
+if RENDER_EXTERNAL_HOSTNAME:
+    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+    CSRF_TRUSTED_ORIGINS.append(f"https://{RENDER_EXTERNAL_HOSTNAME}")
+
+# Render terminates HTTPS in front of the app and forwards the original scheme.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
 INSTALLED_APPS = [
     "daphne",
     "django.contrib.admin",
@@ -29,6 +38,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -62,6 +72,7 @@ ASGI_APPLICATION = "photobooth.asgi.application"
 # SQLite by default; set DATABASE_URL (e.g. postgres://user:pass@host:5432/db) for PostgreSQL.
 if env("DATABASE_URL", default=""):
     DATABASES = {"default": env.db("DATABASE_URL")}
+    DATABASES["default"]["CONN_HEALTH_CHECKS"] = True
 else:
     DATABASES = {
         "default": {
@@ -102,15 +113,42 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 # Every image is served through a view that checks the viewer belongs to the couple.
 MEDIA_ROOT = Path(env("MEDIA_ROOT", default=str(BASE_DIR / "media")))
 
+# With CLOUDINARY_URL set (cloudinary://key:secret@cloud_name) photos go to
+# Cloudinary as private files; otherwise they're stored on disk in MEDIA_ROOT.
+# Render's disk is wiped on every deploy, so production needs Cloudinary.
+CLOUDINARY_URL = env("CLOUDINARY_URL", default="")
+CLOUDINARY_FOLDER = env("CLOUDINARY_FOLDER", default="miles-apart")
+STORAGES = {
+    "default": {
+        "BACKEND": (
+            "photobooth.storage.PrivateCloudinaryStorage"
+            if CLOUDINARY_URL
+            else "django.core.files.storage.FileSystemStorage"
+        ),
+    },
+    "staticfiles": {
+        "BACKEND": (
+            "django.contrib.staticfiles.storage.StaticFilesStorage"
+            if DEBUG
+            else "whitenoise.storage.CompressedManifestStaticFilesStorage"
+        ),
+    },
+}
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 LOGIN_URL = "accounts:login"
 LOGIN_REDIRECT_URL = "couples:dashboard"
 LOGOUT_REDIRECT_URL = "home"
 
-EMAIL_BACKEND = env(
-    "EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend"
-)
+# Password-reset emails print to the log unless EMAIL_URL is set,
+# e.g. smtp+tls://you@gmail.com:app-password@smtp.gmail.com:587
+if env("EMAIL_URL", default=""):
+    vars().update(env.email_url("EMAIL_URL"))
+else:
+    EMAIL_BACKEND = env(
+        "EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend"
+    )
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Miles Apart <hello@milesapart.local>")
 
 # Upload limits (bytes)
