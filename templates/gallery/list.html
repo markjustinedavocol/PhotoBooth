@@ -8,7 +8,7 @@
     <a href="{% url 'gallery:list' %}?fav=1" class="tab{% if favorites_only %} is-active{% endif %}">♥ Favorites</a>
   </div>
 </div>
-<p class="muted">Only you and {{ current_partner.profile.name }} can see these.</p>
+<p class="muted">{% if current_partner %}Only you and {{ current_partner.profile.name }} can see these.{% else %}Only you can see these.{% endif %}</p>
 
 {% if strips %}
   <div class="strip-grid">

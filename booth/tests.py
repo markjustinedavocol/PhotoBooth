@@ -60,16 +60,17 @@ class BoothViewTests(TestCase):
             {"index": index, "image": file or jpeg()},
         )
 
-    def test_new_session_requires_pairing(self):
+    def test_unpaired_setup_page_offers_solo_only(self):
         self.client.force_login(self.stranger)
         response = self.client.get(reverse("booth:new"))
-        self.assertRedirects(response, reverse("couples:pair"))
+        self.assertContains(response, "Pair up to unlock")
+        self.assertEqual(response.context["form"].initial["mode"], "solo")
 
     def test_create_session_and_open_room(self):
         self.client.force_login(self.alex)
         response = self.client.post(
             reverse("booth:new"),
-            {"theme": "film", "photo_filter": "bw", "layout": "grid", "caption": "hi"},
+            {"mode": "duo", "theme": "film", "photo_filter": "bw", "layout": "grid", "caption": "hi"},
         )
         session = BoothSession.objects.filter(status=BoothSession.Status.WAITING).get()
         self.assertRedirects(response, reverse("booth:room", args=[session.pk]))
@@ -198,3 +199,98 @@ class BoothConsumerTests(TransactionTestCase):
         msg = await b.receive_json_from()
         self.assertEqual((msg["type"], msg["online"]), ("presence", False))
         await b.disconnect()
+
+
+@override_settings(MEDIA_ROOT=TEMP_MEDIA)
+class SoloBoothTests(TestCase):
+    def setUp(self):
+        self.couple, self.alex, self.sam = make_couple()
+        self.solo = User.objects.create_user("kai", "k@example.com", "pw-123456!")
+
+    def create(self, user, mode="solo"):
+        self.client.force_login(user)
+        return self.client.post(
+            reverse("booth:new"),
+            {"mode": mode, "theme": "classic", "photo_filter": "none", "layout": "strip"},
+        )
+
+    def shoot(self, user, session):
+        self.client.force_login(user)
+        start = self.client.post(reverse("booth:start_solo", args=[session.pk]))
+        self.assertEqual(start.json()["shots"], 4)
+        for i in range(4):
+            response = self.client.post(
+                reverse("booth:upload_frame", args=[session.pk]), {"index": i, "image": jpeg()}
+            )
+        return response
+
+    def test_unpaired_user_can_shoot_solo(self):
+        self.create(self.solo)
+        session = BoothSession.objects.get(started_by=self.solo)
+        self.assertEqual((session.mode, session.couple), ("solo", None))
+        self.assertTemplateUsed(self.client.get(reverse("booth:room", args=[session.pk])), "booth/solo.html")
+
+        response = self.shoot(self.solo, session)
+        strip = PhotoStrip.objects.get()
+        self.assertEqual(response.json()["strip_url"], reverse("gallery:detail", args=[strip.pk]))
+        self.assertEqual((strip.owner, strip.couple), (self.solo, None))
+        self.assertContains(self.client.get(reverse("gallery:list")), "Solo")
+
+        # nobody else can see an unpaired user's solo strip
+        self.client.force_login(self.alex)
+        self.assertEqual(self.client.get(reverse("gallery:image", args=[strip.pk])).status_code, 404)
+
+    def test_unpaired_user_cannot_start_duo(self):
+        response = self.create(self.solo, mode="duo")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Pair with your partner to use the booth together")
+        self.assertFalse(BoothSession.objects.exists())
+
+    def test_paired_solo_strip_is_shared_but_room_is_private(self):
+        self.create(self.sam)
+        session = BoothSession.objects.get(mode="solo")
+        self.assertEqual(session.couple, self.couple)
+
+        self.client.force_login(self.alex)  # the partner can't step into someone's solo room
+        self.assertEqual(self.client.get(reverse("booth:room", args=[session.pk])).status_code, 404)
+
+        self.shoot(self.sam, session)
+        strip = PhotoStrip.objects.get()
+        self.client.force_login(self.alex)  # ...but the finished strip lands in the shared gallery
+        self.assertEqual(self.client.get(reverse("gallery:detail", args=[strip.pk])).status_code, 200)
+
+    def test_solo_does_not_cancel_or_show_as_open_duo_room(self):
+        duo = BoothSession.objects.create(couple=self.couple, started_by=self.alex)
+        self.create(self.sam)
+        duo.refresh_from_db()
+        self.assertEqual(duo.status, BoothSession.Status.WAITING)
+        self.client.force_login(self.alex)
+        dashboard = self.client.get(reverse("couples:dashboard"))
+        self.assertEqual(dashboard.context["active_session"], duo)
+
+    def test_start_solo_only_once_and_only_for_solo(self):
+        self.create(self.solo)
+        session = BoothSession.objects.get()
+        self.assertEqual(self.client.post(reverse("booth:start_solo", args=[session.pk])).status_code, 200)
+        self.assertEqual(self.client.post(reverse("booth:start_solo", args=[session.pk])).status_code, 409)
+        duo = BoothSession.objects.create(couple=self.couple, started_by=self.alex)
+        self.client.force_login(self.alex)
+        self.assertEqual(self.client.post(reverse("booth:start_solo", args=[duo.pk])).status_code, 404)
+
+    def test_solo_strip_is_single_column(self):
+        photo = Image.new("RGB", (800, 600), "red")
+        solo = compose([(photo,)] * 4, names=("Kai",), clocks=(("Manila", "9:14 PM"),))
+        duo = compose([(photo, photo)] * 4, names=("A", "B"))
+        self.assertLess(solo.width, duo.width / 1.5)
+        self.assertEqual(solo.height, duo.height)
+
+
+@override_settings(MEDIA_ROOT=TEMP_MEDIA)
+class SoloConsumerTests(TransactionTestCase):
+    async def test_solo_sessions_have_no_websocket(self):
+        user = await sync_to_async(User.objects.create_user)("kai", "k@example.com", "pw-123456!")
+        session = await sync_to_async(BoothSession.objects.create)(mode="solo", started_by=user)
+        comm = WebsocketCommunicator(URLRouter(websocket_urlpatterns), f"/ws/booth/{session.pk}/")
+        comm.scope["user"] = user
+        connected, _ = await comm.connect()
+        self.assertFalse(connected)

@@ -4,6 +4,6 @@
   </span>
   <span class="strip-meta">
     <span class="strip-title">{{ strip.caption|default:"Untitled strip" }}</span>
-    <span class="strip-date">{{ strip.created_at|date:"M j, Y" }}{% if strip.is_favorite %} <b class="fav" title="Favorite">♥</b>{% endif %}{% if strip.love_note %} <span title="Has a love note">✉</span>{% endif %}</span>
+    <span class="strip-date">{{ strip.created_at|date:"M j, Y" }}{% if strip.session.is_solo %} <span class="badge-solo">{% if strip.owner_id == user.id %}Solo{% else %}Solo · {{ strip.owner.profile.name }}{% endif %}</span>{% endif %}{% if strip.is_favorite %} <b class="fav" title="Favorite">♥</b>{% endif %}{% if strip.love_note %} <span title="Has a love note">✉</span>{% endif %}</span>
   </span>
 </a>

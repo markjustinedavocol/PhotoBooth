@@ -7,7 +7,6 @@ from django.views.decorators.http import require_POST
 
 from booth.models import BoothSession
 from booth.services import save_strip
-from couples.models import Couple
 
 from .forms import StripNoteForm
 from .models import PhotoStrip
@@ -16,21 +15,18 @@ from .models import PhotoStrip
 def get_strip_for(user, pk):
     strip = get_object_or_404(
         PhotoStrip.objects.select_related(
-            "couple__partner_a__profile", "couple__partner_b__profile", "session"
+            "couple__partner_a__profile", "couple__partner_b__profile", "session", "owner__profile"
         ),
         pk=pk,
     )
-    if not strip.couple.is_active or not strip.couple.has_member(user):
+    if not strip.can_view(user):
         raise Http404
     return strip
 
 
 @login_required
 def strip_list(request):
-    couple = Couple.for_user(request.user)
-    if couple is None or not couple.is_paired:
-        return redirect("couples:pair")
-    strips = couple.strips.all()
+    strips = PhotoStrip.objects.visible_to(request.user).select_related("session", "owner__profile")
     favorites_only = request.GET.get("fav") == "1"
     if favorites_only:
         strips = strips.filter(is_favorite=True)

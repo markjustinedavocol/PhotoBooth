@@ -84,15 +84,10 @@ class BoothConsumer(AsyncJsonWebsocketConsumer):
     def _is_member(self):
         session = (
             BoothSession.objects.select_related("couple")
-            .filter(pk=self.session_id)
+            .filter(pk=self.session_id, mode=BoothSession.Mode.DUO)
             .first()
         )
-        return (
-            session is not None
-            and session.couple.is_active
-            and session.couple.is_paired
-            and session.couple.has_member(self.user)
-        )
+        return session is not None and session.couple.is_paired and session.can_join(self.user)
 
     @database_sync_to_async
     def _claim_start(self):

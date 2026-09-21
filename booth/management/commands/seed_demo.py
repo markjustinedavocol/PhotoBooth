@@ -140,6 +140,27 @@ class Command(BaseCommand):
             strip.created_at = when
             strip.save(update_fields=["created_at"])
 
+        # A solo strip Sam took for Alex to wake up to.
+        when = timezone.now() - timedelta(hours=6)
+        session = BoothSession.objects.create(
+            mode=BoothSession.Mode.SOLO,
+            couple=couple,
+            started_by=sam,
+            status=BoothSession.Status.DONE,
+            theme="polaroid",
+            photo_filter="warm",
+            layout="strip",
+            caption="Good morning from Toronto",
+            captured_at=when,
+        )
+        for index in range(session.shots):
+            Frame.objects.create(
+                session=session, user=sam, index=index, image=fake_frame(PEOPLE[1], index, rng)
+            )
+        strip = save_strip(session)
+        strip.love_note = "Coffee's on. Wish you were here to steal a sip."
+        strip.save()
+
         self.stdout.write(
             self.style.SUCCESS(
                 f"Demo ready: log in as 'alex' or 'sam' with password '{PASSWORD}' "

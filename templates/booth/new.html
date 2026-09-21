@@ -2,10 +2,40 @@
 {% block title %}New booth session{% endblock %}
 {% block content %}
 <h1 class="page-title">Set up the booth</h1>
-<p class="lead">Pick a look, then invite {{ current_partner.profile.name }} into the room.</p>
+<p class="lead">Pick who's in the shot and a look for your strip.</p>
 
 <form method="post" class="booth-setup" novalidate>
   {% csrf_token %}
+  <section class="card">
+    <h2>Who's in the booth?</h2>
+    <div class="choice-grid choice-grid-2">
+      {% for radio in form.mode %}
+        <label class="choice{% if radio.data.value == 'duo' and not paired %} is-locked{% endif %}">
+          {% if radio.data.value == 'duo' and not paired %}
+            <input type="radio" disabled>
+          {% else %}
+            {{ radio.tag }}
+          {% endif %}
+          <span class="choice-body">
+            <span class="mode-icon" aria-hidden="true">{% if radio.data.value == 'duo' %}💞{% else %}🤳{% endif %}</span>
+            <span class="choice-label">
+              {% if radio.data.value == 'duo' %}Together{% else %}Just me{% endif %}
+            </span>
+            <span class="choice-hint">
+              {% if radio.data.value == 'duo' %}
+                {% if paired %}Live with {{ current_partner.profile.name }}, synced shots{% else %}Pair up to unlock{% endif %}
+              {% else %}
+                {% if paired %}A strip for {{ current_partner.profile.name }} to wake up to{% else %}Your own strip, right now{% endif %}
+              {% endif %}
+            </span>
+          </span>
+        </label>
+      {% endfor %}
+    </div>
+    {% for error in form.mode.errors %}<p class="error">{{ error }}</p>{% endfor %}
+    {% if not paired %}<p class="muted small"><a href="{% url 'couples:pair' %}">Pair with your partner</a> to use the booth together.</p>{% endif %}
+  </section>
+
   <section class="card">
     <h2>Frame</h2>
     <div class="choice-grid">
@@ -54,7 +84,7 @@
 
   <div class="setup-actions">
     <button class="btn btn-large" type="submit">Open the booth →</button>
-    <p class="muted small">You'll get a room link. {{ current_partner.profile.name }} will also see "join now" on their home page.</p>
+    {% if paired %}<p class="muted small">Together: {{ current_partner.profile.name }} will see "join now" on their home page.</p>{% endif %}
   </div>
 </form>
 {% endblock %}

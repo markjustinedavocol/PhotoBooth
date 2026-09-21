@@ -86,29 +86,11 @@
   // ------------------------------------------------------------------ camera
 
   async function startCamera() {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      cameraError("This browser can't reach your camera here. Open the site over HTTPS (or on localhost) in a recent browser.");
-      return false;
-    }
-    const video = { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 960 } };
     try {
-      state.stream = await navigator.mediaDevices.getUserMedia({ video, audio: true });
+      state.stream = await Shoot.openCamera({ audio: true });
     } catch (err) {
-      if (err && err.name === "NotAllowedError") {
-        cameraError("Camera access was blocked. Allow the camera for this site in your browser's address bar, then reload.");
-        return false;
-      }
-      try {
-        // No microphone (or it's busy)? The booth still works with video only.
-        state.stream = await navigator.mediaDevices.getUserMedia({ video, audio: false });
-      } catch (err2) {
-        cameraError(
-          err2 && err2.name === "NotFoundError"
-            ? "We couldn't find a camera on this device."
-            : "Your camera couldn't start. Is another app using it?"
-        );
-        return false;
-      }
+      cameraError(err.message);
+      return false;
     }
     el.localVideo.srcObject = state.stream;
     el.localPlaceholder.hidden = true;
@@ -277,100 +259,20 @@
 
   // ------------------------------------------------------------------ shooting
 
-  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-  let audioCtx = null;
+  const { sleep, beep } = Shoot;
+  const thumbs = Shoot.thumbs(el.thumbs, el.localVideo.style.filter);
 
-  function beep(freq = 660, duration = 0.08) {
+  async function upload(blob, index) {
     try {
-      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
-      osc.connect(gain).connect(audioCtx.destination);
-      osc.start();
-      osc.stop(audioCtx.currentTime + duration);
-    } catch {}
-  }
-
-  function shutterSound() {
-    try {
-      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-      const len = audioCtx.sampleRate * 0.12;
-      const buffer = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
-      const data = buffer.getChannelData(0);
-      for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
-      const src = audioCtx.createBufferSource();
-      const gain = audioCtx.createGain();
-      gain.gain.value = 0.35;
-      src.buffer = buffer;
-      src.connect(gain).connect(audioCtx.destination);
-      src.start();
-    } catch {}
-  }
-
-  function flash() {
-    el.flash.classList.remove("is-flashing");
-    void el.flash.offsetWidth; // restart the animation
-    el.flash.classList.add("is-flashing");
-  }
-
-  function captureFrame() {
-    const video = el.localVideo;
-    const w = video.videoWidth || 1280;
-    const h = video.videoHeight || 960;
-    const canvas = document.createElement("canvas");
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext("2d");
-    // Mirror, so the photo matches the selfie preview you were posing in.
-    ctx.translate(w, 0);
-    ctx.scale(-1, 1);
-    ctx.drawImage(video, 0, 0, w, h);
-    return new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.9));
-  }
-
-  async function upload(blob, index, attempt = 1) {
-    const body = new FormData();
-    body.append("index", String(index));
-    body.append("image", blob, `frame-${index}.jpg`);
-    try {
-      const res = await fetch(cfg.uploadUrl, {
-        method: "POST",
-        body,
-        headers: { "X-CSRFToken": cfg.csrfToken },
-        credentials: "same-origin",
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.error || `Upload failed (${res.status})`);
-      markThumb(index, "done");
+      const json = await Shoot.uploadFrame(cfg, blob, index);
+      thumbs.mark(index, "done");
       if (json.strip_url) goTo(json.strip_url);
       return true;
     } catch (err) {
-      if (attempt < 3) {
-        await sleep(800 * attempt);
-        return upload(blob, index, attempt + 1);
-      }
-      markThumb(index, "failed");
+      thumbs.mark(index, "failed");
       console.warn(err);
       return false;
     }
-  }
-
-  function addThumb(blob, index) {
-    const img = document.createElement("img");
-    img.src = URL.createObjectURL(blob);
-    img.alt = `Shot ${index + 1}`;
-    img.style.filter = el.localVideo.style.filter;
-    img.dataset.index = index;
-    img.className = "thumb is-uploading";
-    el.thumbs.appendChild(img);
-  }
-
-  function markThumb(index, stateName) {
-    const img = el.thumbs.querySelector(`[data-index="${index}"]`);
-    if (img) img.className = `thumb is-${stateName}`;
   }
 
   async function runShoot({ shots, seconds, pause }) {
@@ -390,20 +292,11 @@
       el.shotCounter.hidden = false;
       el.shotCounter.textContent = `${i + 1} / ${shots}`;
       say(i === 0 ? "Get close… 💞" : ["Now a silly one!", "Show some love ♥", "Last one, make it count!"][Math.min(i - 1, 2)]);
-      el.countdown.hidden = false;
-      for (let s = seconds; s > 0; s--) {
-        el.countdown.textContent = s;
-        el.countdown.classList.remove("pop");
-        void el.countdown.offsetWidth;
-        el.countdown.classList.add("pop");
-        beep(s === 1 ? 880 : 660);
-        await sleep(1000);
-      }
-      el.countdown.hidden = true;
-      flash();
-      shutterSound();
-      const blob = await captureFrame();
-      addThumb(blob, i);
+      await Shoot.countdown(el.countdown, seconds);
+      Shoot.flash(el.flash);
+      Shoot.shutterSound();
+      const blob = await Shoot.captureFrame(el.localVideo);
+      thumbs.add(blob, i);
       state.uploads.push(upload(blob, i));
       if (i < shots - 1) await sleep(pause);
     }
@@ -417,17 +310,11 @@
 
   // ------------------------------------------------------------------ after the shoot
 
-  async function fetchStatus() {
-    const res = await fetch(cfg.statusUrl, { credentials: "same-origin" });
-    if (!res.ok) throw new Error("status");
-    return res.json();
-  }
-
   async function waitForStrip() {
     const startedAt = Date.now();
     while (!state.finished) {
       try {
-        const s = await fetchStatus();
+        const s = await Shoot.fetchStatus(cfg);
         if (s.strip_url) return goTo(s.strip_url);
         if (s.status === "cancelled") return goTo(cfg.dashboardUrl);
         if (Date.now() - startedAt > 20000) {
@@ -445,16 +332,10 @@
   el.finishBtn.addEventListener("click", async () => {
     el.finishBtn.disabled = true;
     try {
-      const res = await fetch(cfg.finishUrl, {
-        method: "POST",
-        headers: { "X-CSRFToken": cfg.csrfToken },
-        credentials: "same-origin",
-      });
-      const json = await res.json();
+      const json = await Shoot.post(cfg.finishUrl, cfg.csrfToken);
       if (json.strip_url) return goTo(json.strip_url);
-      say(json.error || "Couldn't make the strip yet.");
-    } catch {
-      say("Couldn't reach the server. Try again.");
+    } catch (err) {
+      say(err.message || "Couldn't reach the server. Try again.");
     }
     el.finishBtn.disabled = false;
   });

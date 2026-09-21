@@ -4,12 +4,15 @@
 {% if not couple or not couple.is_paired %}
   <section class="card empty-state">
     <p class="big-heart" aria-hidden="true">♥</p>
-    <h1>Hi {{ user.profile.name }}! The booth needs two.</h1>
-    <p class="lead">Pair with your partner to unlock the booth and your shared gallery.</p>
+    <h1>Hi {{ user.profile.name }}!</h1>
+    <p class="lead">Pair with your partner to use the booth together and share a gallery. Or try the solo booth now.</p>
     {% if couple %}
       <p>Your invite code is <strong class="code">{{ couple.invite_code }}</strong>. Waiting for your partner to join…</p>
     {% endif %}
-    <a class="btn" href="{% url 'couples:pair' %}">{% if couple %}Share your invite{% else %}Pair with your partner{% endif %}</a>
+    <div class="hero-actions center-actions">
+      <a class="btn" href="{% url 'couples:pair' %}">{% if couple %}Share your invite{% else %}Pair with your partner{% endif %}</a>
+      <a class="btn btn-ghost" href="{% url 'booth:new' %}?mode=solo">🤳 Solo booth</a>
+    </div>
   </section>
 {% else %}
   <section class="couple-hero card">
@@ -57,10 +60,13 @@
       {% else %}
         <a class="btn" href="{% url 'booth:new' %}">Start a booth session</a>
       {% endif %}
+      <a class="btn btn-ghost" href="{% url 'booth:new' %}?mode=solo">🤳 Solo booth</a>
       <a class="btn btn-ghost" href="{% url 'couples:settings' %}">Our dates</a>
     </div>
   </section>
+{% endif %}
 
+{% if recent_strips or couple.is_paired %}
   <section>
     <div class="section-head">
       <h2>Recent strips</h2>

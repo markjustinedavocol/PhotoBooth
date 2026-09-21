@@ -8,7 +8,6 @@ from PIL import Image, ImageDraw, ImageEnhance, ImageFont, ImageOps
 
 CELL_W, CELL_H = 480, 360  # one partner's photo (4:3)
 SEAM = 6  # gap between the two halves of a pair
-PAIR_W = CELL_W * 2 + SEAM
 HEART = object()  # marker for draw_segments
 
 THEMES = {
@@ -173,30 +172,39 @@ def _draw_footer(draw, width, height, theme, caption, names, date_text, clocks):
     if theme is THEMES["classic"]:
         draw.line([(theme["side"], top + 8), (width - theme["side"], top + 8)], fill=theme["accent"], width=2)
 
-    title = caption or f"{names[0]} & {names[1]}"
+    title = caption or " & ".join(names)
     title_font = fit_font(draw, title, "script", int(76 * scale), max_text)
     draw.text((cx, top + 70), title, font=title_font, fill=theme["ink"], anchor="mm")
 
     meta_font = load_font("sans", int(28 * scale))
-    segments = [names[0], HEART, names[1]]
+    segments = _with_hearts(names)
     if date_text:
         segments.append(f"   ·   {date_text}")
     draw_segments(draw, cx, top + 140 * min(scale, 1.15), segments, meta_font, theme["muted"], theme["accent"])
 
     if clocks:
         clock_font = load_font("sans", int(24 * scale))
-        (city_a, time_a), (city_b, time_b) = clocks
         draw_segments(
             draw, cx, top + 188 * min(scale, 1.15),
-            [f"{city_a} {time_a}", HEART, f"{city_b} {time_b}"],
+            _with_hearts([f"{city} {time}" for city, time in clocks]),
             clock_font, theme["muted"], theme["accent"],
         )
+
+
+def _with_hearts(parts):
+    """['Alex', 'Sam'] -> ['Alex', HEART, 'Sam']; a single part stays on its own."""
+    segments = []
+    for i, part in enumerate(parts):
+        if i:
+            segments.append(HEART)
+        segments.append(part)
+    return segments
 
 
 # ---------------------------------------------------------------- public API
 
 def compose(
-    pairs,
+    shots,
     *,
     theme="classic",
     photo_filter="none",
@@ -209,14 +217,18 @@ def compose(
 ):
     """Build a strip image.
 
-    pairs: list of (left_image, right_image) PIL images (either may be None).
-    clocks: optional ((city_a, "9:14 PM"), (city_b, "9:14 AM")).
+    shots: one tuple per shot, holding the photos taken at that moment:
+        (left, right) for a couple, (photo,) for a solo booth. Any may be None.
+    names: one name per photographer, in the same order.
+    clocks: optional ((city, "9:14 PM"), ...), one per photographer.
     """
     t = THEMES.get(theme, THEMES["classic"])
     cols = 2 if layout == "grid" else 1
-    rows = max(1, math.ceil(len(pairs) / cols))
+    rows = max(1, math.ceil(len(shots) / cols))
+    per_shot = max((len(s) for s in shots), default=1)
+    shot_w = per_shot * CELL_W + (per_shot - 1) * SEAM
     border = 14 if "card" in t else 0
-    unit_w, unit_h = PAIR_W + 2 * border, CELL_H + 2 * border
+    unit_w, unit_h = shot_w + 2 * border, CELL_H + 2 * border
 
     width = 2 * t["side"] + cols * unit_w + (cols - 1) * t["gap"]
     height = t["pad"] + rows * unit_h + (rows - 1) * t["gap"] + t["footer"]
@@ -228,7 +240,7 @@ def compose(
     if "confetti" in t:
         _draw_confetti(draw, width, height, t, random.Random(seed))
 
-    for i, (left, right) in enumerate(pairs):
+    for i, photos in enumerate(shots):
         row, col = divmod(i, cols)
         x = t["side"] + col * (unit_w + t["gap"])
         y = t["pad"] + row * (unit_h + t["gap"])
@@ -237,13 +249,14 @@ def compose(
             draw.rectangle([x + 5, y + 7, x + unit_w + 5, y + unit_h + 7], fill=shade)
             draw.rectangle([x, y, x + unit_w - 1, y + unit_h - 1], fill=t["card"])
         px, py = x + border, y + border
-        draw.rectangle([px, py, px + PAIR_W - 1, py + CELL_H - 1], fill=t["seam"])
-        canvas.paste(prepare_cell(left, photo_filter, t), (px, py))
-        canvas.paste(prepare_cell(right, photo_filter, t), (px + CELL_W + SEAM, py))
-        # a little heart stitching the two halves together
-        hx, hy = px + CELL_W + SEAM / 2, py + CELL_H - 30
-        draw_heart(draw, hx, hy, 42, (255, 255, 255))
-        draw_heart(draw, hx, hy, 30, t["accent"])
+        draw.rectangle([px, py, px + shot_w - 1, py + CELL_H - 1], fill=t["seam"])
+        for j, photo in enumerate(photos):
+            canvas.paste(prepare_cell(photo, photo_filter, t), (px + j * (CELL_W + SEAM), py))
+        # a little heart stitching each pair of halves together
+        for j in range(1, len(photos)):
+            hx, hy = px + j * (CELL_W + SEAM) - SEAM / 2, py + CELL_H - 30
+            draw_heart(draw, hx, hy, 42, (255, 255, 255))
+            draw_heart(draw, hx, hy, 30, t["accent"])
 
     _draw_footer(draw, width, height, t, caption, names, date_text, clocks)
     return canvas

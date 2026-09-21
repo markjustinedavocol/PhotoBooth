@@ -27,7 +27,7 @@
 
   <aside class="strip-side">
     <h1>{{ strip.caption|default:"Your strip" }}</h1>
-    <p class="muted">{{ strip.created_at|date:"l, F j, Y · g:i A" }}</p>
+    <p class="muted">{{ strip.created_at|date:"l, F j, Y · g:i A" }}{% if strip.session.is_solo %} · <span class="badge-solo">Solo · {{ strip.owner.profile.name }}</span>{% endif %}</p>
 
     <div class="action-row">
       <a class="btn" href="{% url 'gallery:download' strip.pk %}">Download PNG</a>
@@ -54,7 +54,7 @@
       </form>
     </section>
 
-    <form method="post" action="{% url 'gallery:delete' strip.pk %}" onsubmit="return confirm('Delete this strip for both of you? This can’t be undone.');">
+    <form method="post" action="{% url 'gallery:delete' strip.pk %}" onsubmit="return confirm('{% if strip.couple_id %}Delete this strip for both of you?{% else %}Delete this strip?{% endif %} This can’t be undone.');">
       {% csrf_token %}
       <button class="link-button danger" type="submit">Delete this strip</button>
     </form>

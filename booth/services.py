@@ -42,24 +42,23 @@ def _open_frame(frame):
 
 
 def render_session(session, *, layout, caption):
-    couple = session.couple
-    left, right = couple.partner_a, couple.partner_b
+    people = session.photographers()  # partner_a on the left for couples
     frames = {(f.user_id, f.index): f for f in session.frames.all()}
-    pairs = [
-        (_open_frame(frames.get((left.id, i))), _open_frame(frames.get((right.id, i))))
+    shots = [
+        tuple(_open_frame(frames.get((person.id, i))) for person in people)
         for i in range(session.shots)
     ]
     when = session.captured_at or session.created_at
-    left_time, right_time = local_time(left.profile, when), local_time(right.profile, when)
+    times = [local_time(person.profile, when) for person in people]
     return compose(
-        pairs,
+        shots,
         theme=session.theme,
         photo_filter=session.photo_filter,
         layout=layout,
         caption=caption,
-        names=(left.profile.name, right.profile.name),
-        date_text=pretty_date(left_time),
-        clocks=((left.profile.place, clock(left_time)), (right.profile.place, clock(right_time))),
+        names=tuple(person.profile.name for person in people),
+        date_text=pretty_date(times[0]),
+        clocks=tuple((person.profile.place, clock(t)) for person, t in zip(people, times)),
         seed=session.pk.int % 10_000,
     )
 
@@ -80,7 +79,7 @@ def save_strip(session, *, layout=None, caption=None):
 
     old_name = strip.image.name if strip and strip.image else ""
     if strip is None:
-        strip = PhotoStrip(session=session, couple=session.couple)
+        strip = PhotoStrip(session=session, couple=session.couple, owner=session.started_by)
     strip.layout = layout
     strip.caption = caption
     strip.image.save(f"{layout}.png", ContentFile(buffer.getvalue()), save=False)

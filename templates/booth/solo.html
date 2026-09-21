@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 {% load static %}
-{% block title %}The booth{% endblock %}
+{% block title %}Solo booth{% endblock %}
 {% block body_class %}page-booth{% endblock %}
 {% block content %}
-<section id="booth" class="booth">
+<section class="booth booth-solo">
   <header class="booth-head">
     <div>
-      <h1>The booth</h1>
+      <h1>Solo booth</h1>
       <p class="chips">
         <span class="chip">{{ session.get_theme_display }}</span>
         <span class="chip">{{ session.get_photo_filter_display }}</span>
@@ -14,13 +14,15 @@
         {% if session.caption %}<span class="chip chip-script">“{{ session.caption }}”</span>{% endif %}
       </p>
     </div>
-    <span class="presence" id="presence" data-state="offline">
-      <i class="presence-dot"></i><span id="presence-text">Waiting for {{ partner.profile.name }}…</span>
-    </span>
+    {% if current_partner %}
+      <span class="presence" data-state="online">
+        <i class="presence-dot"></i><span>Saved to your gallery with {{ current_partner.profile.name }}</span>
+      </span>
+    {% endif %}
   </header>
 
-  <div class="stage" id="stage">
-    <figure class="cam {% if me_left %}cam-left{% else %}cam-right{% endif %}">
+  <div class="stage stage-solo">
+    <figure class="cam">
       <video id="local-video" autoplay playsinline muted style="filter: {{ session.filter_css }}"></video>
       <div class="cam-placeholder" id="local-placeholder">
         <span class="spinner" aria-hidden="true"></span>
@@ -28,36 +30,24 @@
       </div>
       <figcaption>You · {{ user.profile.place }}</figcaption>
     </figure>
-    <span class="stage-heart" aria-hidden="true">♥</span>
-    <figure class="cam {% if me_left %}cam-right{% else %}cam-left{% endif %}">
-      <video id="remote-video" autoplay playsinline style="filter: {{ session.filter_css }}"></video>
-      <div class="cam-placeholder" id="remote-placeholder">
-        {% include "partials/avatar.html" with person=partner size="lg" %}
-        <span id="remote-placeholder-text">Waiting for {{ partner.profile.name }} to step in…</span>
-      </div>
-      <figcaption>{{ partner.profile.name }} · {{ partner.profile.place }}</figcaption>
-    </figure>
-
     <div class="countdown" id="countdown" hidden aria-live="assertive"></div>
     <div class="flash" id="flash"></div>
     <div class="shot-counter" id="shot-counter" hidden></div>
   </div>
 
   <div class="booth-controls">
-    <button type="button" class="btn btn-ghost" id="ready-btn" disabled>I'm ready</button>
     <button type="button" class="btn btn-large" id="start-btn" disabled>Start the countdown</button>
-    <button type="button" class="btn btn-ghost btn-icon" id="mute-btn" hidden title="Mute microphone">🎙️ Mic on</button>
   </div>
-  <p class="booth-message" id="booth-message" aria-live="polite">Both of you tap “I'm ready”, then either one starts the countdown.</p>
+  <p class="booth-message" id="booth-message" aria-live="polite">Starting your camera…</p>
 
   <div class="thumbs" id="thumbs" aria-label="Your shots"></div>
 
   <div class="finish-panel card" id="finish-panel" hidden>
-    <p id="finish-text">{{ partner.profile.name }}'s photos haven't all arrived yet.</p>
+    <p>Some photos are taking a while to upload.</p>
     <button type="button" class="btn" id="finish-btn">Make the strip with what we have</button>
   </div>
 
-  <form method="post" action="{% url 'booth:cancel' session.pk %}" class="booth-leave" onsubmit="return confirm('Close this booth session for both of you?');">
+  <form method="post" action="{% url 'booth:cancel' session.pk %}" class="booth-leave">
     {% csrf_token %}
     <button class="link-button muted" type="submit">Close this session</button>
   </form>
@@ -66,5 +56,5 @@
 {% endblock %}
 {% block scripts %}
 <script src="{% static 'js/shoot.js' %}"></script>
-<script src="{% static 'js/booth.js' %}"></script>
+<script src="{% static 'js/solo.js' %}"></script>
 {% endblock %}

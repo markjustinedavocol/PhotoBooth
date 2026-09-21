@@ -18,10 +18,9 @@
       {% if user.is_authenticated %}
         <nav class="nav-links" aria-label="Main">
           <a href="{% url 'couples:dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}is-active{% endif %}">Home</a>
-          {% if current_couple.is_paired %}
-            <a href="{% url 'booth:new' %}" class="{% if request.resolver_match.app_name == 'booth' %}is-active{% endif %}">Booth</a>
-            <a href="{% url 'gallery:list' %}" class="{% if request.resolver_match.app_name == 'gallery' %}is-active{% endif %}">Gallery</a>
-          {% else %}
+          <a href="{% url 'booth:new' %}" class="{% if request.resolver_match.app_name == 'booth' %}is-active{% endif %}">Booth</a>
+          <a href="{% url 'gallery:list' %}" class="{% if request.resolver_match.app_name == 'gallery' %}is-active{% endif %}">Gallery</a>
+          {% if not current_couple.is_paired %}
             <a href="{% url 'couples:pair' %}" class="{% if request.resolver_match.url_name == 'pair' %}is-active{% endif %}">Pair up</a>
           {% endif %}
           <a href="{% url 'accounts:profile' %}" class="nav-me" title="Profile">

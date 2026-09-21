@@ -9,6 +9,7 @@ from django.views.decorators.http import require_POST
 
 from accounts.utils import clock, local_time
 from booth.models import BoothSession
+from gallery.models import PhotoStrip
 
 from .forms import CoupleSettingsForm, JoinForm
 from .models import Couple
@@ -24,7 +25,12 @@ def home(request):
 @login_required
 def dashboard(request):
     couple = Couple.for_user(request.user)
-    context = {"couple": couple}
+    strips = PhotoStrip.objects.visible_to(request.user).select_related("session", "owner__profile")
+    context = {
+        "couple": couple,
+        "recent_strips": strips[:6],
+        "strip_count": strips.count(),
+    }
     if couple and couple.is_paired:
         partner = couple.partner_of(request.user)
         context.update(
@@ -33,11 +39,10 @@ def dashboard(request):
             partner_clock=clock(local_time(partner.profile)),
             active_session=BoothSession.objects.filter(
                 couple=couple,
+                mode=BoothSession.Mode.DUO,
                 status__in=[BoothSession.Status.WAITING, BoothSession.Status.CAPTURING],
                 created_at__gte=timezone.now() - timedelta(hours=3),
             ).first(),
-            recent_strips=couple.strips.all()[:6],
-            strip_count=couple.strips.count(),
         )
     return render(request, "couples/dashboard.html", context)
 
