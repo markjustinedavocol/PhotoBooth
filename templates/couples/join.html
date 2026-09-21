@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Join your partner{% endblock %}
+{% block content %}
+<section class="card narrow center">
+  {% if invite and not invite.is_paired and invite.partner_a_id != user.id %}
+    {% include "partials/avatar.html" with person=invite.partner_a size="lg" %}
+    <h1>{{ invite.partner_a.profile.name }} invited you to their booth</h1>
+    <p class="lead">Pair up to take synced photo strips together, wherever you both are.</p>
+    <form method="post">
+      {% csrf_token %}
+      <button class="btn" type="submit">Pair with {{ invite.partner_a.profile.name }} ♥</button>
+    </form>
+  {% elif invite and invite.partner_a_id == user.id %}
+    <h1>This is your own invite</h1>
+    <p>Send this link to your partner so they can join.</p>
+    <a class="btn" href="{% url 'couples:pair' %}">Back</a>
+  {% else %}
+    <h1>This invite isn't available</h1>
+    <p>It may have already been used. Ask your partner for a fresh code.</p>
+    <a class="btn" href="{% url 'couples:pair' %}">Enter a code</a>
+  {% endif %}
+</section>
+{% endblock %}

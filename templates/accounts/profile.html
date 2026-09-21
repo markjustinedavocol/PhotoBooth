@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Profile{% endblock %}
+{% block content %}
+<h1 class="page-title">Your profile</h1>
+<section class="card narrow-wide">
+  <div class="profile-head">
+    {% include "partials/avatar.html" with person=user size="lg" %}
+    <div>
+      <strong>{{ user.profile.name }}</strong>
+      <p class="muted small">@{{ user.username }}</p>
+    </div>
+  </div>
+  <form method="post" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+    {% include "partials/form_field.html" with field=profile_form.display_name %}
+    {% include "partials/form_field.html" with field=account_form.email %}
+    <div class="form-row">
+      {% include "partials/form_field.html" with field=profile_form.city %}
+      {% include "partials/form_field.html" with field=profile_form.timezone %}
+    </div>
+    {% include "partials/form_field.html" with field=profile_form.avatar %}
+    <button class="btn" type="submit">Save profile</button>
+    <a class="btn btn-ghost" href="{% url 'accounts:password_reset' %}">Change password</a>
+  </form>
+</section>
+{% endblock %}

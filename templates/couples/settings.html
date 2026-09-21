@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Our dates{% endblock %}
+{% block content %}
+<h1 class="page-title">Our dates</h1>
+<div class="two-col">
+  <section class="card">
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {% for field in form %}{% include "partials/form_field.html" %}{% endfor %}
+      <button class="btn" type="submit">Save dates</button>
+    </form>
+  </section>
+  <section class="card card-quiet">
+    <h2>Unpair</h2>
+    <p class="muted">This ends your pairing. Your shared gallery gets archived and neither of you can open it anymore.</p>
+    <form method="post" action="{% url 'couples:leave' %}" onsubmit="return confirm('Unpair from {{ current_partner.profile.name|escapejs }}? Your shared gallery will be archived.');">
+      {% csrf_token %}
+      <button class="btn btn-danger" type="submit">Unpair</button>
+    </form>
+  </section>
+</div>
+{% endblock %}

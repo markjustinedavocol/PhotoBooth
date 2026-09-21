@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Close the distance{% endblock %}
+{% block body_class %}page-home{% endblock %}
+{% block content %}
+<section class="hero">
+  <div class="hero-copy">
+    <p class="eyebrow">A photobooth for long-distance love</p>
+    <h1>Same moment.<br>Different time zones.<br><span class="script">One strip.</span></h1>
+    <p class="lead">Step into the booth together from anywhere in the world. A shared countdown fires both cameras at the same second and puts your photos side by side, like you were squeezed into the same little booth.</p>
+    <div class="hero-actions">
+      <a class="btn" href="{% url 'accounts:signup' %}">Create your booth</a>
+      <a class="btn btn-ghost" href="{% url 'accounts:login' %}">I already have an account</a>
+    </div>
+  </div>
+  <div class="hero-art" aria-hidden="true">
+    <div class="mini-strip">
+      {% for i in "1234" %}
+      <div class="mini-pair">
+        <span class="mini-cell night"><i class="face"></i></span>
+        <span class="mini-cell day"><i class="face"></i></span>
+        <b class="mini-heart">♥</b>
+      </div>
+      {% endfor %}
+      <p class="mini-caption">Manila 9:14 PM ♥ Toronto 9:14 AM</p>
+    </div>
+  </div>
+</section>
+
+<section class="steps">
+  <article class="card step">
+    <span class="step-num">1</span>
+    <h3>Pair up</h3>
+    <p>Send your partner an invite code. Your booth and gallery are private to the two of you.</p>
+  </article>
+  <article class="card step">
+    <span class="step-num">2</span>
+    <h3>Step into the booth</h3>
+    <p>See each other live, pick a frame and filter, and tap ready. 3, 2, 1… four shots, perfectly in sync.</p>
+  </article>
+  <article class="card step">
+    <span class="step-num">3</span>
+    <h3>Keep the strip</h3>
+    <p>Your photos are stitched into a strip with both of your cities and local times. Flip it over to leave a love note.</p>
+  </article>
+</section>
+{% endblock %}

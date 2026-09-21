@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+{% block content %}
+{% if not couple or not couple.is_paired %}
+  <section class="card empty-state">
+    <p class="big-heart" aria-hidden="true">♥</p>
+    <h1>Hi {{ user.profile.name }}! The booth needs two.</h1>
+    <p class="lead">Pair with your partner to unlock the booth and your shared gallery.</p>
+    {% if couple %}
+      <p>Your invite code is <strong class="code">{{ couple.invite_code }}</strong>. Waiting for your partner to join…</p>
+    {% endif %}
+    <a class="btn" href="{% url 'couples:pair' %}">{% if couple %}Share your invite{% else %}Pair with your partner{% endif %}</a>
+  </section>
+{% else %}
+  <section class="couple-hero card">
+    <div class="couple-faces">
+      <figure>
+        {% include "partials/avatar.html" with person=user size="lg" %}
+        <figcaption><strong>You</strong><span>{{ user.profile.place }} · {{ my_clock }}</span></figcaption>
+      </figure>
+      <span class="couple-heart" aria-hidden="true">♥</span>
+      <figure>
+        {% include "partials/avatar.html" with person=partner size="lg" %}
+        <figcaption><strong>{{ partner.profile.name }}</strong><span>{{ partner.profile.place }} · {{ partner_clock }}</span></figcaption>
+      </figure>
+    </div>
+
+    <div class="counters">
+      <div class="counter">
+        {% if couple.days_together is not None %}
+          <span class="counter-num">{{ couple.days_together }}</span>
+          <span class="counter-label">days together</span>
+        {% else %}
+          <a href="{% url 'couples:settings' %}" class="counter-empty">Add your anniversary</a>
+        {% endif %}
+      </div>
+      <div class="counter">
+        {% if couple.days_until_meetup is not None %}
+          <span class="counter-num">{% if couple.days_until_meetup == 0 %}Today!{% else %}{{ couple.days_until_meetup }}{% endif %}</span>
+          <span class="counter-label">{% if couple.days_until_meetup == 0 %}you finally meet{% else %}day{{ couple.days_until_meetup|pluralize }} until you meet{% endif %}</span>
+        {% else %}
+          <a href="{% url 'couples:settings' %}" class="counter-empty">Set your next visit</a>
+        {% endif %}
+      </div>
+      <div class="counter">
+        <span class="counter-num">{{ strip_count }}</span>
+        <span class="counter-label">strip{{ strip_count|pluralize }} taken</span>
+      </div>
+    </div>
+
+    <div class="hero-actions">
+      {% if active_session %}
+        <a class="btn" href="{% url 'booth:room' active_session.pk %}">
+          {% if active_session.started_by_id == user.id %}Back to the booth{% else %}{{ partner.profile.name }} is in the booth, join now{% endif %}
+        </a>
+        <a class="btn btn-ghost" href="{% url 'booth:new' %}">Start a new one</a>
+      {% else %}
+        <a class="btn" href="{% url 'booth:new' %}">Start a booth session</a>
+      {% endif %}
+      <a class="btn btn-ghost" href="{% url 'couples:settings' %}">Our dates</a>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>Recent strips</h2>
+      {% if strip_count %}<a href="{% url 'gallery:list' %}">See all →</a>{% endif %}
+    </div>
+    {% if recent_strips %}
+      <div class="strip-grid">
+        {% for strip in recent_strips %}{% include "gallery/_strip_card.html" %}{% endfor %}
+      </div>
+    {% else %}
+      <p class="muted">No strips yet. Your first one is a countdown away.</p>
+    {% endif %}
+  </section>
+{% endif %}
+{% endblock %}

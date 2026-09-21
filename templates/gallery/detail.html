@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}{{ strip.caption|default:"Your strip" }}{% endblock %}
+{% block content %}
+<a class="back-link" href="{% url 'gallery:list' %}">← Gallery</a>
+
+<div class="strip-detail">
+  <div class="flip-wrap">
+    <button type="button" class="flip-card layout-{{ strip.layout }}" id="flip-card" aria-pressed="false" aria-label="Flip the strip over to read the love note">
+      <span class="flip-inner">
+        <span class="flip-front">
+          <img src="{% url 'gallery:image' strip.pk %}?v={{ strip.image.name|slugify }}" alt="{{ strip.caption|default:'Photo strip' }}">
+        </span>
+        <span class="flip-back">
+          <span class="note-paper">
+            {% if strip.love_note %}
+              <span class="note-text">{{ strip.love_note|linebreaksbr }}</span>
+            {% else %}
+              <span class="note-empty">No love note yet.<br>Write one below ♥</span>
+            {% endif %}
+            <span class="note-sign">{{ strip.created_at|date:"F j, Y" }}</span>
+          </span>
+        </span>
+      </span>
+    </button>
+    <p class="muted small center">Tap the strip to flip it over</p>
+  </div>
+
+  <aside class="strip-side">
+    <h1>{{ strip.caption|default:"Your strip" }}</h1>
+    <p class="muted">{{ strip.created_at|date:"l, F j, Y · g:i A" }}</p>
+
+    <div class="action-row">
+      <a class="btn" href="{% url 'gallery:download' strip.pk %}">Download PNG</a>
+      <form method="post" action="{% url 'gallery:favorite' strip.pk %}" class="inline">
+        {% csrf_token %}
+        <button class="btn btn-ghost{% if strip.is_favorite %} is-fav{% endif %}" type="submit" aria-pressed="{{ strip.is_favorite|yesno:'true,false' }}">
+          {% if strip.is_favorite %}♥ Favorited{% else %}♡ Favorite{% endif %}
+        </button>
+      </form>
+      <form method="post" action="{% url 'gallery:relayout' strip.pk %}" class="inline">
+        {% csrf_token %}
+        <input type="hidden" name="layout" value="{{ other_layout }}">
+        <button class="btn btn-ghost" type="submit">Switch to {{ other_layout_label|lower }}</button>
+      </form>
+    </div>
+
+    <section class="card">
+      <h2>Caption &amp; love note</h2>
+      <form method="post" novalidate>
+        {% csrf_token %}
+        {% include "partials/form_field.html" with field=form.caption %}
+        {% include "partials/form_field.html" with field=form.love_note %}
+        <button class="btn" type="submit">Save</button>
+      </form>
+    </section>
+
+    <form method="post" action="{% url 'gallery:delete' strip.pk %}" onsubmit="return confirm('Delete this strip for both of you? This can’t be undone.');">
+      {% csrf_token %}
+      <button class="link-button danger" type="submit">Delete this strip</button>
+    </form>
+  </aside>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  const card = document.getElementById("flip-card");
+  card.addEventListener("click", () => {
+    const flipped = card.classList.toggle("is-flipped");
+    card.setAttribute("aria-pressed", flipped);
+  });
+</script>
+{% endblock %}

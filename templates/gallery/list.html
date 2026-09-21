@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Gallery{% endblock %}
+{% block content %}
+<div class="section-head">
+  <h1 class="page-title">Our gallery</h1>
+  <div class="tabs" role="tablist">
+    <a href="{% url 'gallery:list' %}" class="tab{% if not favorites_only %} is-active{% endif %}">All</a>
+    <a href="{% url 'gallery:list' %}?fav=1" class="tab{% if favorites_only %} is-active{% endif %}">♥ Favorites</a>
+  </div>
+</div>
+<p class="muted">Only you and {{ current_partner.profile.name }} can see these.</p>
+
+{% if strips %}
+  <div class="strip-grid">
+    {% for strip in strips %}{% include "gallery/_strip_card.html" %}{% endfor %}
+  </div>
+{% else %}
+  <section class="card empty-state">
+    {% if favorites_only %}
+      <p>No favorites yet. Tap the heart on a strip you love.</p>
+    {% else %}
+      <p>Nothing here yet. Your first strip is waiting.</p>
+      <a class="btn" href="{% url 'booth:new' %}">Open the booth</a>
+    {% endif %}
+  </section>
+{% endif %}
+{% endblock %}

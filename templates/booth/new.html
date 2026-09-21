@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}New booth session{% endblock %}
+{% block content %}
+<h1 class="page-title">Set up the booth</h1>
+<p class="lead">Pick a look, then invite {{ current_partner.profile.name }} into the room.</p>
+
+<form method="post" class="booth-setup" novalidate>
+  {% csrf_token %}
+  <section class="card">
+    <h2>Frame</h2>
+    <div class="choice-grid">
+      {% for radio in form.theme %}
+        <label class="choice">
+          {{ radio.tag }}
+          <span class="choice-body">
+            <span class="swatch swatch-{{ radio.data.value }}" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span class="choice-label">{{ radio.choice_label }}</span>
+          </span>
+        </label>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Filter</h2>
+    <div class="choice-grid choice-grid-4">
+      {% for radio in form.photo_filter %}
+        <label class="choice">
+          {{ radio.tag }}
+          <span class="choice-body">
+            <span class="filter-sample filter-{{ radio.data.value }}" aria-hidden="true"></span>
+            <span class="choice-label">{{ radio.choice_label }}</span>
+          </span>
+        </label>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Layout</h2>
+    <div class="choice-grid choice-grid-2">
+      {% for radio in form.layout %}
+        <label class="choice">
+          {{ radio.tag }}
+          <span class="choice-body">
+            <span class="layout-sample layout-{{ radio.data.value }}" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+            <span class="choice-label">{{ radio.choice_label }}</span>
+          </span>
+        </label>
+      {% endfor %}
+    </div>
+    {% include "partials/form_field.html" with field=form.caption %}
+  </section>
+
+  <div class="setup-actions">
+    <button class="btn btn-large" type="submit">Open the booth →</button>
+    <p class="muted small">You'll get a room link. {{ current_partner.profile.name }} will also see "join now" on their home page.</p>
+  </div>
+</form>
+{% endblock %}

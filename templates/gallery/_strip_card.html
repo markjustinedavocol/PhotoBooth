@@ -1,0 +1,9 @@
+<a class="strip-card" href="{% url 'gallery:detail' strip.pk %}">
+  <span class="strip-thumb strip-thumb-{{ strip.layout }}">
+    <img src="{% url 'gallery:image' strip.pk %}?v={{ strip.image.name|slugify }}" alt="{{ strip.caption|default:'Photo strip' }}" loading="lazy">
+  </span>
+  <span class="strip-meta">
+    <span class="strip-title">{{ strip.caption|default:"Untitled strip" }}</span>
+    <span class="strip-date">{{ strip.created_at|date:"M j, Y" }}{% if strip.is_favorite %} <b class="fav" title="Favorite">♥</b>{% endif %}{% if strip.love_note %} <span title="Has a love note">✉</span>{% endif %}</span>
+  </span>
+</a>

@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Pair up{% endblock %}
+{% block content %}
+<h1 class="page-title">Pair with your person</h1>
+<p class="lead">One of you shares a code, the other enters it. That's it.</p>
+
+<div class="two-col">
+  <section class="card">
+    <h2>Invite your partner</h2>
+    {% if couple %}
+      <p>Send them this code:</p>
+      <p class="code code-big" id="invite-code">{{ couple.invite_code }}</p>
+      <p>Or send them this link:</p>
+      <div class="copy-row">
+        <input type="text" readonly value="{{ invite_url }}" id="invite-url" aria-label="Invite link">
+        <button type="button" class="btn btn-small" data-copy="#invite-url">Copy</button>
+      </div>
+      <p class="muted small">We'll pair you as soon as they join.</p>
+    {% else %}
+      <p>Create a private code to send to your partner.</p>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="invite">
+        <button class="btn" type="submit">Create my invite code</button>
+      </form>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <h2>Got a code?</h2>
+    <form method="post" novalidate>
+      {% csrf_token %}
+      <input type="hidden" name="action" value="join">
+      {% include "partials/form_field.html" with field=join_form.code %}
+      <button class="btn" type="submit">Pair us up ♥</button>
+    </form>
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  document.querySelectorAll("[data-copy]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const input = document.querySelector(btn.dataset.copy);
+      try { await navigator.clipboard.writeText(input.value); } catch { input.select(); document.execCommand("copy"); }
+      btn.textContent = "Copied!";
+      setTimeout(() => (btn.textContent = "Copy"), 1800);
+    });
+  });
+</script>
+{% endblock %}

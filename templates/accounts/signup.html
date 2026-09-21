@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Sign up{% endblock %}
+{% block content %}
+<section class="card narrow">
+  <h1>Create your booth</h1>
+  <p class="muted">It takes a minute. Your partner makes their own account and joins with your invite code.</p>
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+    {{ form.timezone }}
+    {% include "partials/form_field.html" with field=form.username %}
+    {% include "partials/form_field.html" with field=form.display_name %}
+    {% include "partials/form_field.html" with field=form.email %}
+    {% include "partials/form_field.html" with field=form.password1 %}
+    {% include "partials/form_field.html" with field=form.password2 %}
+    {% for error in form.non_field_errors %}<p class="error">{{ error }}</p>{% endfor %}
+    <button class="btn btn-block" type="submit">Sign up</button>
+  </form>
+  <p class="muted small center">Already have an account? <a href="{% url 'accounts:login' %}{% if next %}?next={{ next|urlencode }}{% endif %}">Log in</a></p>
+</section>
+{% endblock %}
+{% block scripts %}
+<script>
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const field = document.getElementById("id_timezone");
+    if (tz && field && !field.value) field.value = tz;
+  } catch {}
+</script>
+{% endblock %}
